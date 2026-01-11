@@ -69,7 +69,7 @@ export class Ticket {
 	): Promise<Model<any, any>> {
 		ticket.set(
 			'users',
-			(ticket.get('users') as string)
+			((ticket.get('users') as string) || '')
 				.split(',')
 				.concat(users.map((u) => u.id))
 				.join(','),

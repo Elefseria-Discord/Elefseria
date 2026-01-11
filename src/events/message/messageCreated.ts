@@ -1,5 +1,5 @@
 import { BaseEvent, DiscordClient } from '@src/structures';
-import { EmbedBuilder, Events, Message } from 'discord.js';
+import { EmbedBuilder, Events, Message, TextChannel } from 'discord.js';
 import { Colors } from 'discord.js';
 
 /**
@@ -79,7 +79,7 @@ export class MessageCreatedEvent extends BaseEvent {
 				embed.setFooter({
 					text: `Developed by ${username ? username : 'No one'}`,
 				});
-			message.channel.send({
+			(message.channel as TextChannel).send({
 				content: 'Hello, my master !',
 				embeds: [embed],
 			});

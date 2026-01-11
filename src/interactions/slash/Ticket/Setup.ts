@@ -58,6 +58,7 @@ export class SetupTicketSlashCommand extends BaseSlashCommand {
                 Please note that if you've got an unfinished panel you won't be able to add a new one.\n\
                 Just finish it or delete it.",
 			)
+			.setColor('Random')
 			.addFields([
 				{
 					name: 'Active panels',

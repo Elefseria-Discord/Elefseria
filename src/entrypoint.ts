@@ -3,9 +3,9 @@ import { DiscordClient } from '@src/structures';
 import { GatewayIntentBits, Partials, REST } from 'discord.js';
 
 import { DBConnection } from './class/database/dbConnection.db.class';
+import { ModerationModule } from './modules/Moderation.module';
 import { TicketModule } from './modules/Ticket.module';
 import databaseSynchronisation from './structures/database/sync.db';
-import { ModerationModule } from './modules/Moderation.module';
 
 const config = {
 	intents: [

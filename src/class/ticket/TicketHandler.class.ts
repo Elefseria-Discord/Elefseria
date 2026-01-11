@@ -74,7 +74,7 @@ export class TicketHandler {
 				],
 			});
 			if (roles.length > 0 && roles[0] !== '') {
-				for (const role in roles) {
+				for (const role of roles) {
 					await channel.permissionOverwrites.create(role, {
 						ViewChannel: true,
 						SendMessages: true,
@@ -192,7 +192,7 @@ export class TicketHandler {
 			]);
 			const roles = (panel.get('rolesId') as string).split(',');
 			if (roles.length > 0 && roles[0] !== '') {
-				for (const role in roles) {
+				for (const role of roles) {
 					await (channel as TextChannel).permissionOverwrites.create(
 						role,
 						{
@@ -202,7 +202,8 @@ export class TicketHandler {
 					);
 				}
 			}
-		} catch {
+		} catch (error) {
+			console.error(error);
 			throw new Error('Error while closing ticket');
 		}
 	}

@@ -79,11 +79,11 @@ export class TicketCloseRequestSlashCommand extends BaseSlashCommand {
 		}
 		const rowBtns = new ActionRowBuilder<ButtonBuilder>().setComponents(
 			new ButtonBuilder()
-				.setCustomId('ticket_close')
+				.setCustomId('closeTicket')
 				.setLabel('Close')
 				.setStyle(ButtonStyle.Success),
 			new ButtonBuilder()
-				.setCustomId('ticket_cancel')
+				.setCustomId('ticketCancel')
 				.setLabel('Cancel')
 				.setStyle(ButtonStyle.Danger),
 		);

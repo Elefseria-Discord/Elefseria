@@ -2,6 +2,7 @@ import { BaseInteraction } from '@src/structures';
 import {
 	APIApplicationCommandOptionChoice,
 	ApplicationCommandOptionType,
+	InteractionContextType,
 	LocalizationMap,
 	RESTPostAPIChatInputApplicationCommandsJSONBody,
 	SlashCommandBuilder,
@@ -37,19 +38,19 @@ export class BaseSlashCommand extends BaseInteraction {
 		options: SlashCommandOptions[] = [],
 		isEnabled: boolean = false,
 		permissions: bigint[] = [BigInt(1)],
-		dmPermission: boolean = false,
+		contexts: InteractionContextType[] = [InteractionContextType.Guild],
 		nsfw: boolean = false,
 	) {
 		super(name, description, moduleName, isEnabled, permissions);
 		this.slashCommand = new SlashCommandBuilder()
 			.setName(this.name)
 			.setDescription(this.description)
-			.setDMPermission(dmPermission)
+			.setContexts(contexts)
 			.setDefaultMemberPermissions(
 				permissions?.reduce((a, b) => a | b, BigInt(0)) || BigInt(1),
 			)
 			.setNSFW(nsfw);
-		for (const option of options || []) {
+		for (const option of options) {
 			if (!option.choices) {
 				if (option.type == SlashCommandOptionType.STRING)
 					this.slashCommand.addStringOption((opt) =>

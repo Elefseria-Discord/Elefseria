@@ -1,5 +1,6 @@
+require('dotenv').config(); // LOAD CONFIG (.env)
 import eventLoader from '@events/loader';
-import { BaseModule } from '@src/structures';
+import { BaseModule, BaseSlashCommand } from '@src/structures';
 import { Client, REST, Routes } from 'discord.js';
 
 /**
@@ -31,6 +32,7 @@ export class DiscordClient extends Client {
 		this.prefix = prefix;
 		this.clientId = clientId;
 		this.baseRest = rest;
+		this.rest = rest;
 		this.authorId = authorId;
 	}
 
@@ -116,6 +118,48 @@ export class DiscordClient extends Client {
 		});
 	}
 
+	private async removeObsoleteCommands(
+		client: DiscordClient,
+		addedSlashCommands: Array<any>,
+		localCommands: Map<string, string>, // Map associant les noms de commandes locales à leurs modules
+		guildId?: string,
+	): Promise<void> {
+		const commandsToUnregister = addedSlashCommands.filter(
+			(addedCommand) => !localCommands.has(addedCommand.name),
+		);
+
+		console.info(
+			`Started unregistering ${commandsToUnregister.length} obsolete commands.`,
+		);
+
+		for (const command of commandsToUnregister) {
+			try {
+				await this.baseRest.delete(
+					guildId
+						? Routes.applicationGuildCommand(
+								client.getClientId(),
+								guildId,
+								command.id,
+							)
+						: Routes.applicationCommand(
+								client.getClientId(),
+								command.id,
+							),
+				);
+				console.info(`Unregistered obsolete command: ${command.name}`);
+			} catch (error) {
+				console.error(
+					`Failed to unregister command: ${command.name}`,
+					error,
+				);
+			}
+		}
+
+		console.info(
+			`Successfully unregistered ${commandsToUnregister.length} obsolete commands.`,
+		);
+	}
+
 	/**
 	 * @description Load the modules of the client
 	 * @returns {Promise<void>}
@@ -132,12 +176,10 @@ export class DiscordClient extends Client {
 					)
 				: Routes.applicationCommands(this.clientId),
 		)) as Array<any>;
+		const commandToModuleMap = new Map<string, string>();
+		const addedSlashCommands: any[] = restResponse;
 
-		const addedSlashCommands: any[] = [];
-		for (const response of restResponse) {
-			addedSlashCommands.push(response);
-		}
-		this.modules.forEach(async (module: BaseModule) => {
+		for (const module of this.modules.values()) {
 			await module.loadCommands(`src/commands/${module.name}`);
 			await module.loadButtonInteractions(
 				`src/interactions/buttons/${module.name}`,
@@ -157,12 +199,46 @@ export class DiscordClient extends Client {
 			await module.loadSlashCommands(
 				`src/interactions/slash/${module.name}`,
 			);
+			for (const command of (
+				module.getSlashCommands() as Map<string, BaseSlashCommand>
+			).values()) {
+				const commandData = command.getSlashCommandJSON();
+				commandToModuleMap.set(commandData.name, module.name);
+			}
+		}
+
+		const moduleCommandsMap = new Map<string, Array<any>>();
+
+		for (const command of addedSlashCommands) {
+			const moduleName = commandToModuleMap.get(command.name);
+			if (!moduleName) continue; // Commande non reconnue dans les modules locaux
+
+			if (!moduleCommandsMap.has(moduleName)) {
+				moduleCommandsMap.set(moduleName, []);
+			}
+			moduleCommandsMap.get(moduleName)?.push(command);
+		}
+
+		await this.removeObsoleteCommands(
+			this,
+			addedSlashCommands,
+			commandToModuleMap,
+			process.env.DISCORD_BOT_GUILD_ID,
+		);
+
+		for (const module of this.modules.values()) {
+			const moduleName = module.name;
+
+			// Commandes déjà enregistrées pour ce module
+			const alreadyAdded = moduleCommandsMap.get(moduleName) || [];
+
+			// Enregistrement ou mise à jour des commandes pour ce module uniquement
 			await module.registerSlashCommands(
 				this,
-				addedSlashCommands,
+				alreadyAdded,
 				process.env.DISCORD_BOT_GUILD_ID,
 			);
-		});
+		}
 	}
 
 	/**

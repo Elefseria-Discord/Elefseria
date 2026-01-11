@@ -50,7 +50,8 @@ function messageHtmlCreator(message: Message) {
 		for (let i = 0; i < message.attachments.size; i++) {
 			if (i > 0)
 				toAdd += `</div><li style='padding-top: 5px;'></li><div class='chatContent'>`;
-			const attachment = message.attachments.get(keys.next().value);
+			if (keys.next().value === undefined) continue;
+			const attachment = message.attachments.get(keys.next().value!);
 			if (!attachment) continue;
 			if (attachment.height) {
 				toAdd += `<img class='chatImage' src='${attachment.proxyURL}'>`;

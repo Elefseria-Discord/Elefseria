@@ -55,7 +55,7 @@ export class SendPanelInteraction extends BaseButtonInteraction {
 				const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
 					btn,
 				);
-				textChannel.send({
+				await textChannel.send({
 					embeds: [embed],
 					components: [row],
 				});

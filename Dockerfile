@@ -1,7 +1,7 @@
-FROM node:16.20.0-alpine
+FROM node:20.12.2-alpine
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
-RUN npm install -g nodemon
+RUN yarn
+RUN yarn global add nodemon
 COPY . .
-CMD [ "npm", "run", "dev" ]
+CMD [ "yarn", "dev" ]

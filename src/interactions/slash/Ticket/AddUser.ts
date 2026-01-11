@@ -69,13 +69,6 @@ export class TicketAddUserSlashCommand extends BaseSlashCommand {
 			});
 			return;
 		}
-		if (!reason) {
-			await interaction.reply({
-				content: 'You must provide a reason for adding the user',
-				ephemeral: true,
-			});
-			return;
-		}
 		if (!(await ticketInstance.isTicket(interaction.channelId))) {
 			await interaction.reply({
 				content: 'This channel is not a ticket',

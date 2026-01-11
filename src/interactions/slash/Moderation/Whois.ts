@@ -1,49 +1,35 @@
-import { BaseCommand, DiscordClient } from '@src/structures';
-import { Message, TextChannel } from 'discord.js';
+import {
+	BaseSlashCommand,
+	DiscordClient,
+	SlashCommandOptionType,
+} from '@src/structures';
+import { ChatInputCommandInteraction } from 'discord.js';
 
-/**
- * @description TicketCreate command
- * @class TicketCreate
- * @extends BaseCommand
- */
-export class WhoisCommand extends BaseCommand {
+export class WhoisSlashCommand extends BaseSlashCommand {
 	constructor() {
 		super(
 			'whois',
-			['userinfo', 'user-info'],
-			'Moderation',
 			'Get information about a user',
-			'<user>',
-			0,
+			'Moderation',
+			[
+				{
+					name: 'user',
+					description:
+						'The user you want to delete the messages from',
+					type: SlashCommandOptionType.USER,
+					required: false,
+				},
+			],
 			true,
-			[],
 		);
 	}
 
-	/**
-	 * @description Executes the command
-	 * @param {DiscordClient} _client
-	 * @param {Message} message
-	 * @param {string[]} args
-	 * @returns {Promise<void>}
-	 */
 	async execute(
 		_client: DiscordClient,
-		message: Message,
-		args: string[],
+		interaction: ChatInputCommandInteraction,
 	): Promise<void> {
-		if (args.length == 0) {
-			message.reply('Please specify a user');
-			return;
-		}
-		const user =
-			message.mentions.users.first() ||
-			message.guild?.members.cache.get(args[0])?.user;
-		if (!user) {
-			message.reply('Please specify a valid user');
-			return;
-		}
-		const member = message.guild?.members.cache.get(user.id);
+		const user = interaction.options.getUser('user') ?? interaction.user;
+		const member = interaction.guild?.members.cache.get(user.id);
 		const embed = {
 			color: 0x00ff00,
 			title: `Information about ${user.tag}`,
@@ -59,11 +45,6 @@ export class WhoisCommand extends BaseCommand {
 				{
 					name: 'Username',
 					value: user.username,
-					inline: true,
-				},
-				{
-					name: 'Discriminator',
-					value: user.discriminator,
 					inline: true,
 				},
 				{
@@ -94,6 +75,6 @@ export class WhoisCommand extends BaseCommand {
 				},
 			],
 		};
-		(message.channel as TextChannel).send({ embeds: [embed] });
+		await interaction.reply({ embeds: [embed] });
 	}
 }

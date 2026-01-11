@@ -5,10 +5,7 @@ import {
 	DiscordClient,
 } from '@src/structures';
 import crypto from 'crypto';
-import {
-	RESTPostAPIChatInputApplicationCommandsJSONBody,
-	Routes,
-} from 'discord.js';
+import { Routes } from 'discord.js';
 import fs from 'fs';
 
 import { BaseButtonInteraction } from './BaseButtonInteraction.class';
@@ -358,19 +355,52 @@ export abstract class BaseModule {
 		}
 	}
 
+	private normalizeAndSortOptions(options: any[]): any[] {
+		return options
+			.map((option) =>
+				this.sortKeys({
+					...option,
+					required: option.required ?? false, // Ajoute une valeur par défaut si absente
+					options: option.options
+						? this.normalizeAndSortOptions(option.options)
+						: undefined,
+				}),
+			)
+			.sort((a, b) => a.name.localeCompare(b.name)); // Trie les options par leur nom
+	}
+
+	/**
+	 * Trie les clés d'un objet de manière cohérente.
+	 * @param obj L'objet à trier
+	 * @returns Un nouvel objet avec les clés triées
+	 */
+	private sortKeys(obj: any): any {
+		if (Array.isArray(obj)) {
+			return obj.map((item) => this.sortKeys(item));
+		} else if (typeof obj === 'object' && obj !== null) {
+			return Object.keys(obj)
+				.sort()
+				.reduce((sortedObj, key) => {
+					sortedObj[key] = this.sortKeys(obj[key]);
+					return sortedObj;
+				}, {} as any);
+		}
+		return obj; // Retourne la valeur telle quelle si ce n'est pas un objet ou un tableau
+	}
+
 	/**
 	 * Generate a command hash based on some command informations.
 	 * @param command L'objet de commande
 	 * @returns {string} Le hash SHA-256 de la commande
 	 */
 	private generateCommandHash(command: any): string {
-		const relevantFields = ({ name, description, options }: any) => ({
-			name,
-			description,
-			options: options || [],
+		const relevantFields = this.sortKeys({
+			name: command.name,
+			description: command.description,
+			options: this.normalizeAndSortOptions(command.options || []),
 		});
 
-		const jsonString = JSON.stringify(relevantFields(command));
+		const jsonString = JSON.stringify(relevantFields);
 		return crypto.createHash('sha256').update(jsonString).digest('hex');
 	}
 
@@ -390,6 +420,7 @@ export abstract class BaseModule {
 		alreadyAdded: Array<any>,
 		guildId?: string,
 	): Promise<void> {
+		if (this.slashCommands.size === 0) return;
 		const commands = Array.from(this.slashCommands.values()).map((cmd) =>
 			cmd.getSlashCommandJSON(),
 		);
@@ -397,10 +428,9 @@ export abstract class BaseModule {
 			commands.map((cmd) => [cmd.name, this.generateCommandHash(cmd)]),
 		);
 		const registeredCommandHashes = new Map(
-			alreadyAdded.map((cmd) => [
-				cmd.name,
-				this.generateCommandHash(cmd),
-			]),
+			alreadyAdded
+				.sort((cmd1, cmd2) => cmd1.name.localeCompare(cmd2.name))
+				.map((cmd) => [cmd.name, this.generateCommandHash(cmd)]),
 		);
 
 		const commandsToRegister = commands.filter(
@@ -410,76 +440,39 @@ export abstract class BaseModule {
 					registeredCommandHashes.get(cmd.name), // Commande modifiée
 		);
 
-		// Commandes obsolètes à désenregistrer
-		const commandsToUnregister = alreadyAdded.filter(
-			(cmd) => !localCommandHashes.has(cmd.name),
-		);
-
-		console.info(commandsToRegister)
-
-		console.info(
-			`Started unregistering ${commandsToUnregister.length} application (/) commands.`,
-		);
-
-		for (const command of commandsToUnregister) {
-			try {
-				await client.rest.delete(
-					guildId
-						? Routes.applicationGuildCommand(
-								client.getClientId(),
-								guildId,
-								command.id,
-							)
-						: Routes.applicationCommand(
-								client.getClientId(),
-								command.id,
-							),
-				);
-				console.info(`Unregistered command: ${command.name}`);
-			} catch (error) {
-				console.error(
-					`Failed to unregister command: ${command.name}`,
-					error,
-				);
-			}
+		if (commandsToRegister.length === 0) {
+			console.info('No commands to register for ' + this._name);
+			return;
 		}
-
-		console.info(
-			`Successfully unregistered ${commandsToUnregister.length} application (/) commands.`,
-		);
 
 		console.info(
 			`Started registering/updating ${commandsToRegister.length} commands.`,
 		);
+		let length = 0;
 
-		let addedOrRefreshed = 0;
-
-		for (const command of commandsToRegister) {
-			try {
-				await client.rest.post(
-					guildId
-						? Routes.applicationGuildCommands(
-								client.getClientId(),
-								guildId,
-							)
-						: Routes.applicationCommands(client.getClientId()),
-					{
-						body: command,
-					},
-				);
-				addedOrRefreshed++;
-				console.info(`Registered/Updated command: ${command.name}`);
-			} catch (error) {
-				console.error(
-					`Failed to register/update command: ${command.name}`,
-					error,
-				);
+		try {
+			for (const command of commandsToRegister) {
+				await client
+					.getBaseRest()
+					.post(
+						guildId
+							? Routes.applicationGuildCommands(
+									client.getClientId(),
+									guildId,
+								)
+							: Routes.applicationCommands(client.getClientId()),
+						{
+							body: command,
+						},
+					);
+				length++;
 			}
+			console.info(
+				`Successfully reloaded ${length} application (/) commands.`,
+			);
+		} catch (error) {
+			console.error(`Failed to register/update commands`, error);
 		}
-
-		console.info(
-			`Successfully added/refreshed ${addedOrRefreshed} application (/) commands.`,
-		);
 	}
 
 	/**
